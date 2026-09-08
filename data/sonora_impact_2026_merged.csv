@@ -1967,7 +1967,6 @@ order_date,order_datetime,ticket_type,access_level,attendance_days,product_name,
 2026-06-09,2026-06-09 08:32:53,2-jours,regular,,Pass 2 Jours,Shotgun,80.0,90.42,1,1
 2026-06-09,2026-06-09 09:54:52,vendredi,regular,['vendredi'],Pass Vendredi,Shotgun,43.64,49.32,1,1
 2026-06-09,2026-06-09 10:39:36,samedi,regular,['samedi'],Pass Samedi,Shotgun,43.64,49.32,1,1
-2026-06-09,2026-06-09 11:16:01,vendredi,regular,['vendredi'],Pass Vendredi,Shotgun,43.64,49.32,1,1
 2026-06-09,2026-06-09 11:27:04,samedi,regular,['samedi'],Pass Samedi,Shotgun,43.64,49.32,1,1
 2026-06-09,2026-06-09 11:27:04,samedi,regular,['samedi'],Pass Samedi,Shotgun,43.64,49.32,1,1
 2026-06-09,2026-06-09 12:13:29,vendredi,regular,['vendredi'],Pass Vendredi,Shotgun,43.64,49.32,1,1
@@ -2983,7 +2982,6 @@ order_date,order_datetime,ticket_type,access_level,attendance_days,product_name,
 2026-07-27,2026-07-27 19:45:01,samedi,regular,['samedi'],Pass Samedi,Shotgun,43.64,49.32,1,1
 2026-07-27,2026-07-27 19:58:19,2-jours,regular,,Pass 2 Jours,Shotgun,80.0,90.42,1,1
 2026-07-27,2026-07-27 20:28:24,vendredi,regular,['vendredi'],Pass Vendredi,Shotgun,43.64,49.32,1,1
-2026-07-27,2026-07-27 20:31:33,vendredi,regular,['vendredi'],Pass Vendredi,Shotgun,43.64,49.32,1,1
 2026-07-27,2026-07-27 20:57:39,vendredi,regular,['vendredi'],Pass Vendredi,Shotgun,43.64,49.32,1,1
 2026-07-27,2026-07-27 21:35:15,vendredi,early_entry,['vendredi'],Pass Vendredi,Shotgun,40.0,45.21,1,1
 2026-07-27,2026-07-27 22:59:01,vendredi,regular,['vendredi'],Pass Vendredi,Shotgun,43.64,49.32,1,1
@@ -4454,3 +4452,5 @@ order_date,order_datetime,ticket_type,access_level,attendance_days,product_name,
 2026-09-05,2026-09-05 08:00:20,2-jours,regular,,Pass 2 Jours,Shotgun,80.0,90.42,1,1
 2026-09-05,2026-09-05 08:00:21,2-jours,regular,,Pass 2 Jours,Shotgun,80.0,90.42,1,1
 2026-09-05,2026-09-05 08:00:39,2-jours,regular,,Pass 2 Jours,Shotgun,80.0,90.42,1,1
+2026-09-08,2026-09-08 07:15:56,vendredi,regular,['vendredi'],Pass Vendredi,Shotgun,43.64,49.32,1,1
+2026-09-08,2026-09-08 08:00:21,vendredi,regular,['vendredi'],Pass Vendredi,Shotgun,43.64,49.32,1,1
