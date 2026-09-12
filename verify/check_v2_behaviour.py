@@ -67,6 +67,24 @@ def payload_problems(path):
     info = {'live': live, 'jx': D.get('jx')}
 
     daily, weekly = D.get('daily') or [], D.get('weekly') or []
+
+    # THE ROWS THE PAGE DRAWS, WHICH IS NO LONGER THE WHOLE PAYLOAD.
+    #
+    # The suivi row set is the union of both editions' spans, so its length
+    # depends on the selected candidate and only one length can be baked;
+    # `D.daily` is now the WIDEST set any candidate in the menu could need and
+    # `svRows` hides the rest. Read straight, the assertions below describe a
+    # table belonging to whichever other edition reaches furthest - A0 reported
+    # rows stopping at J−240 on parisxxl where the page ends at J−2.
+    #
+    # Same rule, same list the page draws. `own` is the payload's own statement
+    # of our span, so this is not a second derivation of it.
+    own = D.get('own')
+    if own:
+        lo, hi = own
+        daily = [r for r in daily
+                 if (lo <= r.get('jx', 0) <= hi) or r.get('b') is not None]
+
     today = [r for r in daily if r['jx'] == D['jx']]
     if len(today) != 1:
         out.append(f"A0 {len(today)} daily row(s) match jx === D.jx (want 1). The "
@@ -77,9 +95,28 @@ def payload_problems(path):
             out.append(f"A0 none of {len(daily)} daily rows carries fut:true")
         if weekly and not any(r['fut'] for r in weekly):
             out.append(f"A0 none of {len(weekly)} weekly rows carries fut:true")
-        if daily and min(r['jx'] for r in daily) != 0:
-            out.append(f"A0 the daily rows stop at J−{min(r['jx'] for r in daily)}, "
-                       f"not at the event")
+        # AT THE EVENT, OR ONE ROW PAST IT - AND THAT ROW IS THE POINT.
+        #
+        # A0 asserted the table ends exactly at J−0, which was true until the row
+        # set became the union of both editions' spans. A reference edition sells
+        # tickets AFTER its own event - 10 on halloween_2025, 91 on geneve_2025,
+        # 47 on rennes_2025 - and before the union they had no slot and the
+        # reference cumulative could not count them. Giving them one is the whole
+        # reason the future bound moved from `ref_ev` to `ref_last`, and five
+        # pages ending one row past the event is that ruling working.
+        #
+        # RULED by Leo, after being reported rather than adjusted: the assertion
+        # was contradicting a decision, not catching a drift. It is still an
+        # assertion - the table may not run FURTHER than one row past, which is
+        # what would happen if the widened bake leaked into what renders, and
+        # what A0 was reporting at J−240 before this read the visible set.
+        if daily:
+            last = min(r['jx'] for r in daily)
+            if last < -1:
+                out.append(f"A0 the daily rows run to J−{last}, more than one row "
+                           f"past the event. One row past is the reference's own "
+                           f"post-event sales (ruled); beyond that is the widened "
+                           f"row set leaking into what renders")
 
     # D0: the card and the chart must be the same quantity. The card showed
     # window TOTALS with "/jour" after them, beside "Rythme requis", which is a

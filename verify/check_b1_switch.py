@@ -17,6 +17,34 @@ is not "did something change": it is **two independent implementations of the
 same alignment, in two languages, agreeing row for row**. The JS is new; the
 Python is the one whose output Leo has been reading for weeks.
 
+WHAT THIS CHECK CANNOT SEE, DEMONSTRATED RATHER THAN ARGUED
+-----------------------------------------------------------
+**This proves the two implementations AGREE. It does not prove either is RIGHT.**
+That sentence was written as a caution. On 2026-09-12 it happened.
+
+Both sides bounded the reference at its LAST day with data and neither bounded it
+at its FIRST - `ref_last` in `daily_rows`, `lastJr` in `applySeries`, with no
+counterpart in either. So a row above the candidate's launch read
+`ref_n.get(m, 0)` on one side and `day[jr] || 0` on the other, and both answered
+**0**: "sold nothing", about a day before that edition opened. The two languages
+computed the same wrong number from the same missing guard, and this check was
+**green through all of it** - 252 comparisons, both grains, agreeing perfectly.
+
+It went red only because the server half was fixed first, in its own commit, and
+the client then disagreed: 263 rendered against 179 expected on bordeaux. **Had
+both halves landed together the gate would have stayed green and never mentioned
+it.** That is not a flaw in this check; it is its defining limit, and the reason
+the reconciliation - reference cumulative against the candidate's own paid total,
+which reads ONE implementation against the source data - runs before this and not
+after. A gate that compares two things cannot be the thing that decides either.
+
+Neither could `check_suivi_window` see it, for the same reason in a third place:
+its hole rule walked null reference cells, and the missing guard meant those rows
+were never null. **The check was green because the code was wrong.**
+
+Corollary for whoever fixes a bound here: fix both sides in ONE commit and this
+check will not notice. Reconcile.
+
 THE SNAP IS THE POINT
 ---------------------
 `jx_ref = jx_cur − signed_mod7(cur_ev − cand_ev)` is 0 on three of the six live
@@ -154,8 +182,15 @@ const { chromium } = require('playwright');
             if (nn) nn.querySelectorAll('span').forEach(s => s.remove());
             const txt = nn ? nn.textContent.trim() : '';
             const df = r.querySelector('.sv-c .sv-df');
+            /* OUR date too, as a fourth field. The mode-difference assertion
+               below needs the PAIRING and this read only the reference side, so
+               it could see the column and not what the column is beside. In a
+               paired row `.sv-r` is unique - the solo layout puts it first and
+               those rows are excluded by the selector above. */
+            const o = r.querySelector('.sv-r .sv-d');
             return [d ? d.textContent.trim() : '', txt === '—' ? '—' : num(txt),
-                    df ? df.textContent.trim() : null];
+                    df ? df.textContent.trim() : null,
+                    o ? o.textContent.trim() : ''];
           }).filter(Boolean),
           header: (document.querySelector('#suivi .sv-h span') || {}).textContent,
         };
@@ -462,7 +497,30 @@ def main():
                            f'expected; first difference at {i}: '
                            f'{gotw[i] if i < len(gotw) else "-"} vs '
                            f'{wantw[i] if i < len(wantw) else "-"}')
-            BYMODE.setdefault((name, cid), {})[mode] = (tuple(g), tuple(gotw))
+            # THE PAIRING, NOT THE COLUMN, for the mode-difference count below.
+            #
+            # This stored `g` - the rendered reference column - and the union row
+            # set made that quantity MODE-INVARIANT: the span now covers both
+            # editions, so every reference day has a slot under any alignment and
+            # the column is its whole series in order whichever mode is chosen.
+            # What an alignment decides is which of OUR days each reference day
+            # sits beside.
+            #
+            # So the count could only move through the amount of blank PADDING
+            # two modes happen to leave at the ends, and it fell to 75 of 84
+            # against a predicted 82 while every mode was working correctly -
+            # `check_exact_date` reported the same thing on the same day, from
+            # the same cause, which is the two checks agreeing rather than two
+            # defects. The numbers underneath were NOT adjusted; the quantity
+            # they are derived from is.
+            #
+            # `(our date, reference date)` over rows that HAVE a counterpart is
+            # the pairing itself. Rows without one are excluded rather than
+            # compared as `(date, '—')`, because that is the padding whose
+            # position was the old accident.
+            pairing = tuple((c[3], c[0]) for c in cells
+                            if len(c) > 3 and c[0] != '—')
+            BYMODE.setdefault((name, cid), {})[mode] = (pairing, tuple(gotw))
             # ABSENCE, NOT ZERO - and an agreement check cannot see it, because
             # client and server shared the error. Past the candidate's last day
             # WITH DATA the reference column must be null: `ref_n.get(m, 0)` and

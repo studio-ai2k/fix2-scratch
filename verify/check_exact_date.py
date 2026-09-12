@@ -114,8 +114,28 @@ def main():
         args = sides(cfg_all, cand)
         alx, xr = column(*args, 'exact_date')
         _, jr = column(*args, 'j_minus')
-        xcol = [(r['db'], r['b']) for r in xr]
-        jcol = [(r['db'], r['b']) for r in jr]
+        # THE MODE CHANGES THE PAIRING, NOT THE COLUMN.
+        #
+        # This compared `(db, b)` - the reference column alone - and the union
+        # row set made that quantity MODE-INVARIANT. The span is now the union of
+        # both editions', so every one of the reference's days has a slot under
+        # any alignment, and the column is its whole series in order whichever
+        # mode is chosen. What an alignment decides is which of OUR days each
+        # reference day sits beside.
+        #
+        # So the old tuple could only differ through the amount of blank PADDING
+        # the two modes happen to leave at the ends - it reported "yes" where
+        # they padded differently and "no" where the union covered exactly, which
+        # is not a fact about the mode at all. Measured on three candidates: the
+        # column is identical between modes in every case, the pairing differs in
+        # every case, and halloween_2025 and rennes_2025 failed while the mode was
+        # working correctly.
+        #
+        # `(da, db)` over the rows that HAVE a counterpart is the pairing itself.
+        # Rows without one are excluded rather than compared as `(date, None)`,
+        # because that is the padding whose position was the old accident.
+        xcol = [(r['da'], r['db']) for r in xr if r['db']]
+        jcol = [(r['da'], r['db']) for r in jr if r['db']]
         differ = xcol != jcol
         N = cur_ev.year - ccfg['event_date_first'].year
         Yv = (cur_ev - dp.cal_shift(ccfg['event_date_first'], N)).days

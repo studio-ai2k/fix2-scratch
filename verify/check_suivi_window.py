@@ -202,15 +202,42 @@ def reference_hole_problems(html):
         daily = [r for r in daily
                  if (lo <= r.get('jx', 0) <= hi) or r.get('b') is not None]
 
+    # A HOLE IS INTERIOR. A RUN AT EITHER END IS NOT.
+    #
+    # The docstring above already argues this for the TRAILING end: a reference
+    # whose data stops early leaves a genuine tail, and `ref_last` exists to
+    # produce it. The same argument holds at the LEADING end and the file only
+    # ever made half of it - a reference edition that opened LATER than ours
+    # leaves rows above its launch with no counterpart, and that is as true as
+    # the tail.
+    #
+    # It was never reached because `daily_rows` had the matching one-sided hole:
+    # with no `ref_first` guard those rows read `ref_n.get(m, 0)` -> 0 rather
+    # than null, so they were never nulls to walk. THE CHECK WAS GREEN BECAUSE
+    # THE CODE WAS WRONG, and in the same direction - which is worth more than
+    # the fix, because it is the second time in this pass that a guard and the
+    # assertion over it were one-sided together.
+    #
+    # Measured when the guard landed: 62 such rows, on two pages (geneve 60,
+    # rennes 2), and ZERO interior holes anywhere. RULED by Leo on the same
+    # reasoning as A0's post-event row - the assertion was contradicting a
+    # decision rather than catching a drift.
+    withref = [i for i, r in enumerate(daily) if r.get('b') is not None]
+    if not withref:
+        return out
+    lo_i, hi_i = withref[0], withref[-1]
     for i, r in enumerate(daily):
         if r.get('fut') or r.get('b') is not None:
+            continue
+        if not (lo_i < i < hi_i):
             continue
         later = [x for x in daily[i + 1:] if x.get('b') is not None]
         if later:
             out.append(
                 f"settled row J-{r.get('jx')} ({r.get('da')}) has NO reference "
-                f"while J-{later[0].get('jx')} ({later[0].get('da')}) has one "
-                f"- a hole at the boundary, not a tail")
+                f"while J-{later[0].get('jx')} ({later[0].get('da')}) has one, "
+                f"and a row before it has one too - an interior hole, not a run "
+                f"at either end")
     return out
 
 
