@@ -2375,7 +2375,19 @@ function applySeries(s){
        never reach past the data. Making the cut the cut point removed that
        accident, and the two implementations disagreed on 15 pairings in the
        direction where the client showed a value the server suppressed. */
-    const ok = r.fut ? (jr >= 0 && jr >= lastJr)
+    /* `jr >= 0` IS GONE FROM THE FUTURE BRANCH. D149, mirroring
+       dashboard_payload's `limit = ref_last` on the same branch.
+
+       It bounded the reference at its OWN EVENT, so tickets the edition sold
+       after that day had no slot - 53 on bordeaux_2025, 47 on rennes_2025, 10
+       on halloween_2025 - and the cumulative could not count them. `lastJr` is
+       its last day WITH DATA and is the honest bound at both ends: for a LIVE
+       candidate it is stricter than `jr >= 0` and already binding, so this
+       changes nothing there; for a FINISHED one it stops discarding the tail.
+
+       The ROW SET is not rebuilt here - applySeries rewrites the b-side of the
+       rows the server already built, so the union span arrives in D.daily. */
+    const ok = r.fut ? (jr >= lastJr)
                      : (cutJx !== null && jr >= cutJx && jr >= lastJr);
     if (!ok) { r.b = r.rb = r.cb = r.rcb = r.db = null; continue; }
     r.b = day[jr] || 0;
@@ -3198,6 +3210,6 @@ function ac(el){
 })();
 
 </script>
-<!-- shared-v2:14095777ccd0 -->
+<!-- shared-v2:1d73a9114b46 -->
 </body>
 </html>

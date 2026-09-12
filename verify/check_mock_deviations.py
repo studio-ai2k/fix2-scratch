@@ -450,7 +450,14 @@ AUTHORISED_CSS = [
 # An earlier attempt at this set `cutJx = cutAt` alone and was wrong in both
 # directions on 28 pairings; it was reverted with its budget raise. Leo
 # authorised this one as part of the platform-links pass.
-BUDGET_ADDED = 1245
+# 1245 -> 1257: D149, the client half of the union row set. One condition and
+# eleven lines of why: `jr >= 0` comes OFF the future branch, mirroring
+# dashboard_payload's `limit = ref_last`. It bounded the reference at its own
+# EVENT, so a finished edition's post-event sales had no slot and the cumulative
+# could not count them - 53 on bordeaux_2025, 47 on rennes_2025, 10 on
+# halloween_2025. B2-absence's signature moves with it; that entry authorised
+# `lastJr` BESIDE the bound, and the bound is what left.
+BUDGET_ADDED = 1257
 BUDGET_REMOVED = 206
 
 # (id, ruling, signature that must appear on the WORKING side of its hunk)
@@ -855,7 +862,15 @@ AUTHORISED += [
                    'epk_2026, and check_b1_switch was blind to it because the '
                    'server shared the error. Trap #21 again: a bound that was '
                    'correct by accident until an assumption moved',
-     'const ok = r.fut ? (jr >= 0 && jr >= lastJr)'),
+     # SIGNATURE UPDATED BY D149, WHICH SUPERSEDES THE HALF OF THIS ENTRY THAT
+     # NAMED `jr >= 0`. B2-absence added `jr >= lastJr` BESIDE that bound; D149
+     # removes the bound itself, because it cut a FINISHED reference off at its
+     # own event and discarded the tickets it sold afterwards. B2's own text is
+     # what argued for it - "right for a finished edition and wrong for a live
+     # one" turned out to be wrong for a finished one too, in the other
+     # direction. The entry stays because its deviation stays: `lastJr` on the
+     # future branch is still the thing that is authorised here.
+     'const ok = r.fut ? (jr >= lastJr)'),
     ('B2', 'live editions in the comparison menu. The copy shown where a LIVE '
            'candidate is picked, not only where the mode is: under Jour J '
            'alignment its own J−x has not happened for our already-lived rows, '
