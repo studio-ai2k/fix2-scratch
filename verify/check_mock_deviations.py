@@ -432,7 +432,25 @@ AUTHORISED_CSS = [
 # 1195 -> 1215: MODNAV's comment. It grew by eight lines when the seam's
 # delimiters had to come OUT of it - spelling them moved the seam, because
 # body_of() locates the region with a plain find() for that literal.
-BUDGET_ADDED = 1215
+# 1215 -> 1245: D148, the client mirror of the Suivi boundary fix. Three lines
+# of code and the rest comment, in three places:
+#   * `mk` DERIVES `cutAt` from `off` instead of taking it as an argument. :2030
+#     documents it as "the same-point cut, in the reference's own J-x" and two of
+#     the three branches passed OUR J-x - `D.jx` under j_minus, `D.jx + O` under
+#     launch - differing from the truth by exactly the weekday snap. Only
+#     `exact_date` ever matched its own docstring. Derived, a branch can no
+#     longer pass a wrong one.
+#   * `cutJx` becomes the cut point rather than the last day the edition SOLD
+#     on. The old comment stated the defect beside itself: "they differ whenever
+#     the edition was quiet that day."
+#   * `jr >= lastJr` on the PAST branch as well as the future one, matching the
+#     server's `ref_last`, which sits outside its own fut/past split. Invisible
+#     until the bound stopped being a sold day, because a sold-day cut could
+#     never reach past the data.
+# An earlier attempt at this set `cutJx = cutAt` alone and was wrong in both
+# directions on 28 pairings; it was reverted with its budget raise. Leo
+# authorised this one as part of the platform-links pass.
+BUDGET_ADDED = 1245
 BUDGET_REMOVED = 206
 
 # (id, ruling, signature that must appear on the WORKING side of its hunk)

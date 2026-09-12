@@ -260,6 +260,67 @@ def event_identity(cfg, ref_cfg, ref_label):
         # than a subtitle with nothing above it.
         value, sub = (venue, city) if venue else (city, '')
         return "${row('Lieu'," + repr(value) + "," + repr(sub) + ")}\n        "
+
+    # PLATFORM LINKS — THE MOCK LITERAL THAT SHIPPED WRONG ON ALL SEVEN PAGES.
+    #
+    # Every page carried `smartboard.shotgun.live/events/535882` and
+    # `mio.dice.fm/events/RXZlbnQ6NTczMjcx` - epk's Shotgun id and epk's DICE
+    # relay - because the mock was built from epk and these four `<a class="dl">`
+    # rows were never parameterised.
+    #
+    # THE MACHINERY WAS NEVER MISSING. `postprocess_html._platform_cards`
+    # (:1543) builds the right href for the right event, reading the id out of
+    # the card's own subtext so postprocess stays config-free. It runs, it is
+    # correct, and PASS 0 THROWS ITS OUTPUT AWAY: the `.dlinks` block sits at
+    # byte 63119 of bordeaux_oct.html, inside `</nav>`..`</body>`, so the mock's
+    # copy replaces it seconds later. Same class as `événement les 5-6
+    # septembre` and the Lieu row, and missed for the same reason - this list
+    # was enumerated by eye.
+    #
+    # `assert_redesign.sh` stayed green throughout because it asserts a
+    # Smartboard URL is PRESENT. A literal is present.
+    def _dlinks(c):
+        sg_id = (c.get('shotgun_event_id') or '').strip()
+        sg_url = (c.get('shotgun_url') or '').strip()
+        mio_id = (c.get('dice_mio_id') or '').strip()
+        dice_url = (c.get('dice_url') or '').strip()
+        # The Mio relay is DERIVED, never stored: base64 of the literal
+        # `Event:<id>`, the same encoding fetch_csv.py uses. So every event with
+        # a `dice_mio_id` gets a backend link from no config entry at all -
+        # rennes_2026 included, whose `dice_public_id` and `dice_url` are empty.
+        mio = (f'https://mio.dice.fm/events/'
+               f'{postprocess_html._dice_relay_id(mio_id)}/overview'
+               if mio_id else '')
+
+        def row(label, href, shown, logo):
+            # A DASH, NOT A HIDDEN ROW - and the opposite of `_lieu()` above,
+            # deliberately. There the question is "where is this event" and
+            # silence is honest, because we were never told. Here it is "which
+            # platforms sell this event", and for the three with no
+            # `dice_mio_id` the answer is that DICE does not - a fact worth
+            # showing rather than an absence worth hiding. Leo ruled the dash.
+            if not href:
+                return ('<div class="dl" style="opacity:.5;cursor:default">'
+                        f'<div class="dl-i">{logo}</div><div class="dl-t">'
+                        f'<div class="dl-n">{label}</div>'
+                        '<div class="dl-u">—</div></div></div>')
+            return (f'<a class="dl" href="{href}" target="_blank" rel="noopener">'
+                    f'<div class="dl-i">{logo}</div><div class="dl-t">'
+                    f'<div class="dl-n">{label}</div>'
+                    f'<div class="dl-u">{shown}</div></div></a>')
+
+        def strip(u):
+            return re.sub(r'^https?://', '', u)
+
+        return '\n      '.join([
+            row('Shotgun · Smartboard',
+                f'https://smartboard.shotgun.live/events/{sg_id}' if sg_id else '',
+                f'Event ID : {sg_id}', 'SG'),
+            row('Shotgun · Page publique', sg_url, strip(sg_url), 'SG'),
+            row('DICE · Mio', mio, f'Event ID : {mio_id}', 'DICE'),
+            row('DICE · Page publique', dice_url, strip(dice_url), 'DICE'),
+        ])
+
     ref_cap = f"{(ref_cfg or {}).get('total_capacity', 0):,}".replace(',', '\u202f') or '—'
     name = cfg.get('event_name', '').strip()
     brand = (cfg.get('brand') or name).strip()
@@ -274,6 +335,11 @@ def event_identity(cfg, ref_cfg, ref_label):
     # ONE string. Leaving this on the old rule would be the half-fixed shape.
     base = name
     return [
+        # The four platform links, replaced as ONE block: they are a unit,
+        # and four separate entries would each have to match exactly once
+        # against markup that repeats `<a class="dl"` four times.
+        ('<a class="dl" href="https://smartboard.shotgun.live/events/535882" target="_blank" rel="noopener">\n        <div class="dl-i">SG</div><div class="dl-t">\n          <div class="dl-n">Shotgun · Smartboard</div><div class="dl-u">Event ID : 535882</div></div></a>\n      <a class="dl" href="https://shotgun.live/en/festivals/madame-loyal-x-elektric-park" target="_blank" rel="noopener">\n        <div class="dl-i">SG</div><div class="dl-t">\n          <div class="dl-n">Shotgun · Page publique</div>\n          <div class="dl-u">shotgun.live/en/festivals/madame-loyal-x-elektric-park</div></div></a>\n      <a class="dl" href="https://mio.dice.fm/events/RXZlbnQ6NTczMjcx/overview" target="_blank" rel="noopener">\n        <div class="dl-i">DICE</div><div class="dl-t">\n          <div class="dl-n">DICE · Mio</div><div class="dl-u">Event ID : 573271</div></div></a>\n      <a class="dl" href="https://dice.fm/partner/tickets/event/oepro5-madame-loyal-x-elektric-park" target="_blank" rel="noopener">\n        <div class="dl-i">DICE</div><div class="dl-t">\n          <div class="dl-n">DICE · Page publique</div>\n          <div class="dl-u">dice.fm/partner/tickets/event/oepro5-madame-loyal-x-elektric-park</div></div></a>',
+         _dlinks(cfg)),
         ('événement les 5\u20136 septembre ${YC}', f'événement {span} ${{YC}}'),
         ('Elektric Park ${YC}', f'{base} ${{YC}}'),
         # THE REFERENCE LABEL STAYS SPLIT. DO NOT UNIFY IT WITH THE LINE ABOVE.
