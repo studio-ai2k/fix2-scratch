@@ -101,13 +101,15 @@ is half-landed.
 As of CC4's last commit the loop above is green — 30 checks, the gate, and the
 dry run, zero red. That statement is worth exactly one re-run.
 
-> **THAT IS NO LONGER TRUE, AND THREE REDS ARE NOW EXPECTED.** Two clear
-> themselves; **`check_b1_switch` does not** — it is a deliberate red ruled by
-> Leo, covering comparison-candidate switching while the default view every
-> reader lands on stays correct. **`HANDOFF_CC5.md` §0 carries all three with
-> what is broken, what is not, what it needs, and its owner and date.** Name
-> them individually when you report the loop; folding them into "known reds" is
-> how the count survives while the set changes underneath it.
+> **THAT IS NO LONGER TRUE, AND TWO REDS ARE NOW EXPECTED** —
+> `check_data_freshness` and `check_v2_footer`. **`HANDOFF_CC5.md` §0 carries
+> both with what is broken, what is not, and its owner.** Name them individually
+> when you report the loop; folding them into "known reds" is how the count
+> survives while the set changes underneath it — which is exactly what happened
+> to the set this banner used to describe: it said THREE, and two of those three
+> are now closed (`check_v2_behaviour` by its own clock, `check_b1_switch` by
+> the build seat on 2026-09-12), while a different one opened that nobody had
+> written down.
 
 Run them first. Not because they are expected to fail, but because a handoff
 that says "green" is a claim about a tree you have not seen.

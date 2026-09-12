@@ -63,41 +63,31 @@ so. **Name every exclusion in the same breath as "green". Every time.**
 
 Last full run before parking: **32 of 32 green, plus `assert_redesign.sh`.**
 
-### THREE KNOWN REDS. NAME THEM INDIVIDUALLY, EVERY TIME.
-
-Two clear themselves. **One does not**, and the difference is the point: a red
-with no self-resolution and no owner is how a suite stops meaning anything.
+### TWO KNOWN REDS. NAME THEM INDIVIDUALLY, EVERY TIME.
 
 | check | what | clears |
 |---|---|---|
-| `check_v2_behaviour` | epk's two projection scenarios converge at short range | itself, when `OVER` fires on 5 September and the projection stops rendering |
 | `check_data_freshness` | SONORA x IMPACT is cancelled and its data has stopped | when its `status` is settled — see §2.2 |
-| **`check_b1_switch`** | **see below — does NOT clear itself** | **the build seat, after 6 September** |
+| `check_v2_footer` | `epk_2026` is finished (5 September) and still carries the LIVE footer | whoever freezes it — `stamp_footer.py --frozen`. **Present on `origin/main` too**, measured 2026-09-12; it is not a branch artefact |
 
-#### `check_b1_switch` — a deliberate red, ruled by Leo
+**Cleared 2026-09-12, and why each is gone rather than quiet:**
 
-**What is broken:** switching the comparison candidate. The client recomputes
-the reference column in `applySeries`, and its `cutJx` is bound to **our own raw
-J−x** under `j_minus` (`redesign/mock/dashboard_v3.39.html:2088` — `anchorOf`
-sets `cutAt` three different ways, one per mode, and only `exact_date`'s is the
-paired reference J−x). The server now uses the snapped bound. They disagree in
-**both** directions: 13 pairings where the client shows nothing and the server
-has a value, 15 where the client shows a value the server suppresses.
+- `check_v2_behaviour` cleared **itself**, exactly as this table predicted:
+  `OVER` fired on 5 September and epk's projection stopped rendering, so the two
+  scenarios no longer have a short range to converge at.
+- `check_b1_switch` was the deliberate red with an owner, and the build seat
+  closed it. What it needed turned out to be the two changes named here plus a
+  third nobody had: `cutAt` was not a general quantity to be corrected in place,
+  because `anchorOf` set it **three different ways, one per branch**, and only
+  `exact_date`'s was the paired reference J−x. Correcting the line rather than
+  the branch was measured and made it worse — 28 pairings, wrong in both
+  directions. The fix derives `cutAt` inside `mk` so no branch can pass a wrong
+  one, and the weekly grain takes the same bound as the daily one, which it had
+  silently stopped doing. **252 comparisons across 7 pages and 3 anchoring
+  modes, both grains, green.**
 
-**What is NOT broken: the default view.** `applySeries` runs **0 times** on a
-plain load — measured on both trees, with the function wrapped before any page
-script ran. Every reader's landing state is drawn from the baked `D.daily`,
-which is correct. The pre-fix page returns `— —` through the identical probe,
-so the fix is what the reader sees.
-
-**What it needs: two changes, not one.** `cutJx = A.refJx(D.jx)` in all three
-modes, **and** a past-side `ref_last` equivalent the client does not have — the
-server applies `ref_last` to every row and the client only guards the future
-side. Attempting the first alone was measured and made it worse.
-
-**Owner: the build seat, after 6 September.** Not before: the file has three
-modes that deliberately differ, and it has already cost two reading errors under
-time pressure.
+**A red that cleared itself still has to be re-measured, not assumed.** Both of
+the above were re-run on the tree that carries them, not inferred from the date.
 
 ---
 

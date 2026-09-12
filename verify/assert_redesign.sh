@@ -145,13 +145,26 @@ for f in "${FILES[@]}"; do
                     || fail "footer would break stamp_footer.py (code $n)"
 
   # ---- 4. platform backend links ----
-  # Derived, not fixed: only an event with a DICE backend card gets a Mio URL.
-  n=$(count "smartboard.shotgun.live/events/" "$STATIC")
-  [[ "$n" == "1" ]] && pass "Smartboard URL" || fail "$n Smartboard URLs, want 1"
-  want_mio=$(count "DICE · Mio" "$STATIC")
-  n=$(count "mio.dice.fm/events/" "$STATIC")
-  [[ "$n" == "$want_mio" ]] && pass "$n Mio URL(s) (matches $want_mio DICE · Mio card(s))" \
-                            || fail "$n Mio URLs, want $want_mio"
+  # THE TWO ASSERTIONS THAT USED TO BE HERE PASSED ON THE BUG THEY WERE FOR.
+  #
+  #   n=$(count "smartboard.shotgun.live/events/" …); [[ "$n" == "1" ]]
+  #   want_mio=$(count "DICE · Mio" …); [[ "$n" == "$want_mio" ]]
+  #
+  # Both held while ALL SEVEN pages linked to epk's Shotgun id and epk's DICE
+  # relay, copied onto every page by pass 0 from the mock: a literal is present,
+  # and the Mio count compared the card against the href that came from the same
+  # literal, so it matched itself. Presence cannot tell this event's id from
+  # another event's. `platform_links.py` reads the id out of the page and the id
+  # out of THIS page's config row and compares them, which is the only question
+  # that separates the two states - and it knows the dash is correct for the
+  # three events with no `dice_mio_id` rather than counting cards to guess.
+  why="$(python3 "$HERE/platform_links.py" "$p" 2>&1)"
+  if [[ -z "$why" ]]; then
+    pass "platform links are this event's"
+  else
+    fail "platform links belong to another event:"
+    while IFS= read -r line; do [[ -n "$line" ]] && echo "          $line"; done <<< "$why"
+  fi
 
   # ---- 5. the font the redesign actually uses ----
   # DM Sans, not Space Grotesk. The old gate demanded Space Grotesk and it is
