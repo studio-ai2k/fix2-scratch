@@ -457,8 +457,8 @@ AUTHORISED_CSS = [
 # could not count them - 53 on bordeaux_2025, 47 on rennes_2025, 10 on
 # halloween_2025. B2-absence's signature moves with it; that entry authorised
 # `lastJr` BESIDE the bound, and the bound is what left.
-BUDGET_ADDED = 1257
-BUDGET_REMOVED = 206
+BUDGET_ADDED = 1310
+BUDGET_REMOVED = 209
 
 # (id, ruling, signature that must appear on the WORKING side of its hunk)
 AUTHORISED = [
@@ -871,6 +871,36 @@ AUTHORISED += [
      # direction. The entry stays because its deviation stays: `lastJr` on the
      # future branch is still the thing that is authorised here.
      'const ok = r.fut ? (jr >= lastJr)'),
+    ('D150', 'THE TABLE DRAWS FROM `svRows`, NOT FROM THE BAKED ARRAY. The '
+             'suivi row set is the union of both editions\' spans, so its '
+             'LENGTH depends on the selected candidate - bordeaux\'s twelve '
+             'want between 158 and 307 rows - and only one length can be '
+             'baked. `applySeries` rewrites the b-side of the rows it is given '
+             'and can neither grow nor shrink the table, so baking the default '
+             'candidate\'s length left the other eleven wrong in BOTH '
+             'directions on 28 of 252 pairings, as row-count mismatches with '
+             'no same-count failure among them. The page now carries the '
+             'widest set any candidate in the menu could need and this hides '
+             'the rest: a row survives if it is ours (`D.own`, baked as a '
+             'value because a widened row and a quiet day of ours are '
+             'identical from the figures alone) or the selected candidate has '
+             'something to say about it. Measured against the server\'s own '
+             'per-pairing row set: 252 of 252 identical',
+     'const rows = svRows(isD);'),
+    ('D150-count', 'the toggle LABEL counts the same list the toggle opens. '
+                   'Its own entry because it is the half that reverting alone '
+                   'leaves plausible: the table would be right and the button '
+                   'above it would promise 275 previous days on rennes and '
+                   'reveal 93, the difference being rows hidden as blank on '
+                   'both sides. A count and the thing it counts have to come '
+                   'from one list',
+     'const src = svRows(isD);'),
+    ('D150-count-b', 'the two lines that read it. Separate from the '
+                     'declaration above because the hunk matcher splits them - '
+                     'the `const` line and the ternary are not contiguous in '
+                     'the diff - and an entry whose signature does not match '
+                     'its own hunk is the shape D15 warns about',
+     '? src.filter(r=>!r.fut && (isD?r.jx:r.w) > D.jx+(isD?7:1)).length'),
     ('B2', 'live editions in the comparison menu. The copy shown where a LIVE '
            'candidate is picked, not only where the mode is: under Jour J '
            'alignment its own J−x has not happened for our already-lived rows, '

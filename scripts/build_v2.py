@@ -745,7 +745,7 @@ def main():
 
     import dashboard_payload
     import run
-    from datetime import datetime
+    from datetime import datetime, date, timedelta
     cut = datetime.strptime(cutoff, '%Y-%m-%d').date()
 
     # A4: every FINISHED edition with data is a projection candidate, not just
@@ -773,10 +773,37 @@ def main():
     extra = [(cid, str(build_series.series_path(cid)))
              for cid in proj if cid != ref]
 
+    # HOW FAR EACH CANDIDATE IN THE MENU COULD REACH ON OUR ROW SCALE.
+    #
+    # The suivi row set is the union of both editions' spans, so its LENGTH
+    # depends on which candidate is selected - and only one length can be baked.
+    # `applySeries` rewrites the b-side of the rows it is given and cannot grow
+    # or shrink the table, so the page carries the widest set any candidate could
+    # need and the client hides the rest. This is that list, read from the SAME
+    # series files the menu itself is built from twenty lines below: covering the
+    # config's candidates instead would cover seven where the menu offers twelve.
+    #
+    # Only the two endpoints per candidate. `ev - max(jx)` is its first day with
+    # data and `ev - min(jx)` its last; the payload maps both through each of the
+    # three anchoring modes and fills in between.
+    spans = []
+    for cid in menu:
+        f = BASE_DIR / 'series' / f'{cid}.json'
+        if not f.exists():
+            continue
+        h = json.loads(f.read_text(encoding='utf-8'))
+        jxs = [r[0] for r in h.get('daily') or []]
+        if not jxs:
+            continue
+        cev = date.fromisoformat(h['ev'])
+        spans.append((cev, h['lead'],
+                      cev - timedelta(days=max(jxs)),
+                      cev - timedelta(days=min(jxs))))
+
     D = dashboard_payload.build(a.event, a.csv, cut,
                                 a.config, ref or None,
                                 str(ref_csv) if ref_csv else None,
-                                extra_refs=extra)
+                                extra_refs=extra, cand_spans=spans)
 
     # B1's menu. Built from the SERIES FILES that exist, not from the config:
     # an entry the reader can pick but not fetch is the failure mode the whole

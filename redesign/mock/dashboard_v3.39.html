@@ -2196,7 +2196,17 @@ function applySeries(s){
      failed — a generic "aucune donnée" makes all three the same screen, which
      is the plausible-empty-table shape one level up. */
   {
-    const jrs = D.daily.map(r => A.refJx(r.jx));
+    /* OVER OUR OWN SPAN, NOT OVER THE BAKED ARRAY. `D.daily` is now the widest
+       row set any candidate in the menu could need, so its ends belong to
+       whichever OTHER edition reaches furthest - and these two tests ask
+       whether the reference ran out before or after OURS. Read off the baked
+       ends they answer a question about a third party: both comparisons widen,
+       'over' and 'unopened' stop firing, and every miss reports the generic
+       'gap' - which is precisely the screen X4 and X5 were about, where the
+       page knows why it is empty and cannot say so. `D.own` is our span. */
+    const [oLo, oHi] = D.own || [-Infinity, Infinity];
+    const jrs = D.daily.filter(r => r.jx >= oLo && r.jx <= oHi)
+                       .map(r => A.refJx(r.jx));
     CMPGAP = Math.max(...jrs) < lastJr ? 'over'
            : Math.min(...jrs) > Math.max(...sold) ? 'unopened' : 'gap';
     CMPANY = nref > 0;
@@ -2466,9 +2476,43 @@ function hdrRef(future){
   return future ? `${label} (référence)` : `${label} (${alignWord()})`;
 }
 
+/* THE ROWS THIS COMPARISON ACTUALLY HAS, out of the widest set the page ships.
+
+   The suivi row set is the union of both editions' spans, so how many rows it
+   needs depends on which candidate is selected - bordeaux's twelve want between
+   158 and 307. Only one length can be baked, and `applySeries` rewrites the
+   b-side of the rows it is given and can neither grow nor shrink the table. So
+   the page carries the WIDEST set any candidate in the menu could need and this
+   hides the rest.
+
+   `D.own` is our own edition's span in J−x, baked as a VALUE. It is the one
+   bound in the table that does not depend on the candidate - the same under all
+   twelve and all three modes - and it has to come from the server rather than be
+   re-derived here, because from the figures alone a widened row and a quiet day
+   of ours are identical: both read zero. Re-deriving a bound in this file is the
+   exact shape that cost three rounds on `cutAt`.
+
+   `b !== null` is the other half, and it is already exact: `applySeries` writes
+   null, never 0, where the reference has no day - the distinction the server's
+   own comment at daily_rows calls "the whole trap". So a row survives if it is
+   ours or the selected candidate has something to say about it, and the 561 rows
+   that are neither - one contiguous run in each of twelve pairings, every one an
+   em dash down both columns - do not render. Measured against the server's own
+   per-pairing row set: 252 of 252 identical, both grains.
+
+   The WEEKLY grain needs none of this and gets none: `applySeries` rebuilds
+   D.weekly from the candidate's own series rather than writing into baked rows,
+   so its row set is already a true per-candidate union. */
+function svRows(isD){
+  if (!isD) return D.weekly;
+  if (!D.own) return D.daily;
+  const [lo, hi] = D.own;
+  return D.daily.filter(r => (r.jx >= lo && r.jx <= hi) || r.b !== null);
+}
+
 function renderSuivi(){
   const isD = GRAIN === 'jour';
-  const rows = isD ? D.daily : D.weekly;
+  const rows = svRows(isD);
   const R = r => isD ? dRow(r) : wRow(r);
   const key = r => isD ? r.jx : r.w;
   /* live splits: past | the last 8 days (or 7 weeks) | everything still to come.
@@ -2590,9 +2634,15 @@ function tog(which){
     if (open) box.scrollTop = box.scrollHeight;   /* open on the most recent day */
   }
   const isD = GRAIN === 'jour';
+  /* `svRows`, not `D.daily` - this label counts the rows BEHIND the toggle and
+     the toggle opens what renderSuivi drew. Reading the baked array here would
+     promise 275 previous days on rennes and reveal 93, the difference being
+     rows hidden as blank on both sides. A count and the thing it counts have to
+     come from the same list. */
+  const src = svRows(isD);
   const n = which === 'past'
-    ? (isD ? D.daily : D.weekly).filter(r=>!r.fut && (isD?r.jx:r.w) > D.jx+(isD?7:1)).length
-    : (isD ? D.daily : D.weekly).filter(r=>r.fut).length;
+    ? src.filter(r=>!r.fut && (isD?r.jx:r.w) > D.jx+(isD?7:1)).length
+    : src.filter(r=>r.fut).length;
   btn.textContent = open
     ? (which==='past' ? 'Masquer les ' : 'Masquer les ') + (isD?'jours':'semaines')
     : `Voir les ${n} ${which==='past' ? (isD?'jours précédents':'semaines précédentes')
