@@ -583,6 +583,11 @@ def weekly_rows(cur_n, cur_rev, ref_n, ref_rev, cur_ev, ref_ev, cutoff, ref_cut,
     w = 0 so the "À venir" block has weeks to show.
     """
     w0 = cur_jx // 7
+    # The same bound `daily_rows` computes, for the same reason: `ref_cut` is
+    # raw and `align` snaps, so comparing one against the other loses the
+    # boundary by exactly the snap.
+    ref_bound = (align.ref_date(cutoff)
+                 if align is not None and cutoff is not None else ref_cut)
     ca = defaultdict(lambda: [0, 0.0])
     cb = defaultdict(lambda: [0, 0.0])
     for d, k in cur_n.items():
@@ -595,7 +600,16 @@ def weekly_rows(cur_n, cur_rev, ref_n, ref_rev, cur_ev, ref_ev, cutoff, ref_cut,
         # Same split as the daily grain: truncate at the same point for the
         # weeks already lived, and run to the reference's own event for the
         # weeks still ahead.
-        keep = (d <= ref_cut) if w > w0 else (d <= ref_ev)
+        # ON THE PAIRING'S SCALE, LIKE THE DAILY GRAIN. The comment above says
+        # "same split as the daily grain", and after the daily bound moved to
+        # `ref_bound` it was no longer the same: this still compared a snapped
+        # `d` against `ref_cut`, the newest order_date surviving a RAW
+        # same-point filter. One defect, two grains - and fixing one is what
+        # made the two sides disagree, because the client reads a single
+        # `cutJx` for both. check_b1_switch caught it on bordeaux.html: the
+        # boundary week `S-0` rendered 4 131 against epk where the server had
+        # 5 353, same week, same label.
+        keep = (d <= ref_bound) if w > w0 else (d <= ref_ev)
         # AND w >= 0. DECIDED HERE RATHER THAN CARRIED ACROSS, because what it
         # does changed when `exact_date` became a calendar operation.
         #
