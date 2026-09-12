@@ -172,6 +172,36 @@ def reference_hole_problems(html):
         return []
     daily = D.get('daily') or []
     out = []
+
+    # THE ROWS THE READER SEES, WHICH IS NO LONGER THE WHOLE PAYLOAD.
+    #
+    # `D.daily` is now the WIDEST row set any candidate in the menu could need,
+    # because the suivi span is the union of both editions' and only one length
+    # can be baked; `svRows` in the page hides the rows outside the selected
+    # pairing. So the payload carries rows that never render, and every one of
+    # them is null on the reference side by construction - which reads to the
+    # loop below as a hole with data after it. Measured on rennes: 25 such rows,
+    # all at J-156..J-180, all above `own`, none of them on the page.
+    #
+    # THIS IS THE SAME RULE, POINTED AT THE SAME LIST THE PAGE DRAWS - not a
+    # relaxation. A hole inside what renders still fails, which is the defect
+    # this exists for. And the hidden rows are not waved through: the assertion
+    # below them is new and stronger, because option 4's whole claim is that
+    # nothing with a figure on it is ever hidden.
+    own = D.get('own')
+    if own:
+        lo, hi = own
+        hidden = [r for r in daily
+                  if not (lo <= r.get('jx', 0) <= hi) and r.get('b') is None]
+        for r in hidden:
+            if r.get('a'):
+                out.append(
+                    f"row J-{r.get('jx')} ({r.get('da')}) is hidden - outside "
+                    f"`own` with no reference - but carries {r['a']} of OUR "
+                    f"sales. A hidden row must be blank on both sides")
+        daily = [r for r in daily
+                 if (lo <= r.get('jx', 0) <= hi) or r.get('b') is not None]
+
     for i, r in enumerate(daily):
         if r.get('fut') or r.get('b') is not None:
             continue
