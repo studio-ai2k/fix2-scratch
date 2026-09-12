@@ -350,6 +350,25 @@ class Align:
             return cal_shift(day, -self.N)
         return day - timedelta(days=self.offset)
 
+    def cur_date(self, m):
+        """The inverse of `ref_date`: a reference date -> the row that reads it.
+
+        Needed by the UNION row set, which asks the other direction - given the
+        reference's first and last day with data, which table slots have to
+        exist for them to be shown at all.
+
+        NOT EXACT FOR ONE DAY A YEAR, and deliberately not papered over.
+        `cal_shift(cal_shift(d, -N), N) == d` for every date except 29 February,
+        which shifts to 28 February and back to 28 February. So under
+        `exact_date` this can return a day one earlier than the true inverse
+        across a leap boundary. It is used only to WIDEN the span, so the cost
+        of being a day early is an extra empty row, never a dropped one - the
+        direction that fails safe.
+        """
+        if self.calendar:
+            return cal_shift(m, self.N)
+        return m + timedelta(days=self.offset)
+
     def ref_jx(self, day):
         return (self.ref_ev - self.ref_date(day)).days
 
@@ -509,12 +528,32 @@ def daily_rows(cur_n, cur_rev, ref_n, ref_rev, cutoff, first, align, ref_cut,
                  if align is not None and cutoff is not None else ref_cut)
 
     rows, ca, cb, rca, rcb = [], 0, 0, 0.0, 0.0
-    day = first
     # `max` because a FINISHED event's cutoff is past its own event date - the
     # clamp puts it at event_date_last + 1. Stopping at the event there would
     # drop the last rows AND lose the "today" row with them, which is how the
     # first version of this passed on four pages and failed on two.
     end = max(cutoff, cur_ev)
+
+    # THE UNION OF BOTH EDITIONS' SPANS, AT BOTH ENDS.
+    #
+    # The row set used to be bounded by OUR edition alone, so a reference with a
+    # longer campaign lost rows off the table and its cumulative silently
+    # counted only what fitted. Measured across the six pages with a reference:
+    # halloween_2025 lost 2 603 of 21 513 off the top and 10 off the bottom;
+    # paris_xxl_2025 lost 2 971 in a SINGLE row - its launch-day spike, 19% of
+    # that edition's entire sale, sitting one day before the table began.
+    #
+    # A reference day at reference-J renders at table slot J + k, where k is the
+    # weekday snap, so it can fall off EITHER end - and extending only the top
+    # would leave geneve still losing its reference's own event day while the
+    # cumulative claimed to count everything. A figure that moved the right way
+    # and is still wrong is worse than one that never moved.
+    if align is not None and ref_n:
+        lo_ref, hi_ref = min(ref_n), max(ref_n)
+        first = min(first, align.cur_date(lo_ref))
+        end = max(end, align.cur_date(hi_ref))
+
+    day = first
     while day <= end:
         fut = day > cutoff
         m = align.ref_date(day) if align is not None else None
@@ -524,7 +563,16 @@ def daily_rows(cur_n, cur_rev, ref_n, ref_rev, cutoff, first, align, ref_cut,
         # same-point left to preserve, so the bound becomes the reference's own
         # event - otherwise the future rows are blank on both sides and the
         # block says nothing.
-        limit = ref_ev if fut else ref_bound
+        # THE FUTURE BOUND IS THE REFERENCE'S LAST DAY WITH DATA, NOT ITS EVENT.
+        #
+        # `ref_ev` cut the reference off at its own event day, so tickets it
+        # sold AFTER that - 53 on bordeaux_2025, 47 on rennes_2025, 10 on
+        # halloween_2025 - had no slot and the cumulative could not count them.
+        # `ref_last` is the same quantity the guard below already enforces, so
+        # for a LIVE candidate (whose data stops before its event) this changes
+        # nothing at all; for a FINISHED one it stops discarding the tail.
+        limit = ref_last if (fut and ref_last is not None) else (
+            ref_ev if fut else ref_bound)
         has_ref = m is not None and limit is not None and m <= limit
         # AND NOT PAST THE REFERENCE'S OWN LAST DAY OF DATA. For a FINISHED
         # edition `ref_last` is at or after its event, so this is inert - which
