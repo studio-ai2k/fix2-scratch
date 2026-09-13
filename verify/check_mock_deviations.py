@@ -450,8 +450,15 @@ AUTHORISED_CSS = [
 # An earlier attempt at this set `cutJx = cutAt` alone and was wrong in both
 # directions on 28 pairings; it was reverted with its budget raise. Leo
 # authorised this one as part of the platform-links pass.
-BUDGET_ADDED = 1245
-BUDGET_REMOVED = 206
+# 1245 -> 1257: D149, the client half of the union row set. One condition and
+# eleven lines of why: `jr >= 0` comes OFF the future branch, mirroring
+# dashboard_payload's `limit = ref_last`. It bounded the reference at its own
+# EVENT, so a finished edition's post-event sales had no slot and the cumulative
+# could not count them - 53 on bordeaux_2025, 47 on rennes_2025, 10 on
+# halloween_2025. B2-absence's signature moves with it; that entry authorised
+# `lastJr` BESIDE the bound, and the bound is what left.
+BUDGET_ADDED = 1329
+BUDGET_REMOVED = 209
 
 # (id, ruling, signature that must appear on the WORKING side of its hunk)
 AUTHORISED = [
@@ -855,7 +862,66 @@ AUTHORISED += [
                    'epk_2026, and check_b1_switch was blind to it because the '
                    'server shared the error. Trap #21 again: a bound that was '
                    'correct by accident until an assumption moved',
-     'const ok = r.fut ? (jr >= 0 && jr >= lastJr)'),
+     # SIGNATURE UPDATED BY D149, WHICH SUPERSEDES THE HALF OF THIS ENTRY THAT
+     # NAMED `jr >= 0`. B2-absence added `jr >= lastJr` BESIDE that bound; D149
+     # removes the bound itself, because it cut a FINISHED reference off at its
+     # own event and discarded the tickets it sold afterwards. B2's own text is
+     # what argued for it - "right for a finished edition and wrong for a live
+     # one" turned out to be wrong for a finished one too, in the other
+     # direction. The entry stays because its deviation stays: `lastJr` on the
+     # future branch is still the thing that is authorised here.
+     #
+     # SIGNATURE UPDATED AGAIN, BY D152, AND THE REASON IS THIS ENTRY'S OWN
+     # SENTENCE READ IN A MIRROR. B2-absence bounded the reference at its LAST
+     # day with data; nothing bounded it at its FIRST, so `day[jr] || 0`
+     # answered 0 for every row above its launch - "sold nothing", about a day
+     # before it opened, which is word for word the defect described above with
+     # the sign flipped. `dashboard_payload` had the identical hole for the
+     # identical reason, so `check_b1_switch` stayed green through it: the two
+     # implementations agreed and were both wrong, exactly as this entry says
+     # they were the first time. The two bounds now sit together in `inData`,
+     # which is why the ternary's head changed shape rather than its meaning.
+     'const ok = r.fut ? inData'),
+    ('D152', 'THE REFERENCE IS BOUNDED AT ITS FIRST DAY WITH DATA, not only at '
+             'its last. `lastJr` had no counterpart, and nothing ever walked a '
+             'day below the reference\'s first: the row set was bounded by OUR '
+             'span, and the union then set the floor at that edition\'s first '
+             'day exactly, so the BOUND was doing the guard\'s job by '
+             'arithmetic - on both sides of the wire. Baking the widest row set '
+             'for twelve candidates removed the coincidence and the hole became '
+             '84 rows of zeros on bordeaux alone. Trap #21 for the third time, '
+             'and the first where both implementations carried it at once',
+     'const firstJr = sold.length ? Math.max(...sold) : 0;'),
+    ('D150', 'THE TABLE DRAWS FROM `svRows`, NOT FROM THE BAKED ARRAY. The '
+             'suivi row set is the union of both editions\' spans, so its '
+             'LENGTH depends on the selected candidate - bordeaux\'s twelve '
+             'want between 158 and 307 rows - and only one length can be '
+             'baked. `applySeries` rewrites the b-side of the rows it is given '
+             'and can neither grow nor shrink the table, so baking the default '
+             'candidate\'s length left the other eleven wrong in BOTH '
+             'directions on 28 of 252 pairings, as row-count mismatches with '
+             'no same-count failure among them. The page now carries the '
+             'widest set any candidate in the menu could need and this hides '
+             'the rest: a row survives if it is ours (`D.own`, baked as a '
+             'value because a widened row and a quiet day of ours are '
+             'identical from the figures alone) or the selected candidate has '
+             'something to say about it. Measured against the server\'s own '
+             'per-pairing row set: 252 of 252 identical',
+     'const rows = svRows(isD);'),
+    ('D150-count', 'the toggle LABEL counts the same list the toggle opens. '
+                   'Its own entry because it is the half that reverting alone '
+                   'leaves plausible: the table would be right and the button '
+                   'above it would promise 275 previous days on rennes and '
+                   'reveal 93, the difference being rows hidden as blank on '
+                   'both sides. A count and the thing it counts have to come '
+                   'from one list',
+     'const src = svRows(isD);'),
+    ('D150-count-b', 'the two lines that read it. Separate from the '
+                     'declaration above because the hunk matcher splits them - '
+                     'the `const` line and the ternary are not contiguous in '
+                     'the diff - and an entry whose signature does not match '
+                     'its own hunk is the shape D15 warns about',
+     '? src.filter(r=>!r.fut && (isD?r.jx:r.w) > D.jx+(isD?7:1)).length'),
     ('B2', 'live editions in the comparison menu. The copy shown where a LIVE '
            'candidate is picked, not only where the mode is: under Jour J '
            'alignment its own J−x has not happened for our already-lived rows, '

@@ -350,6 +350,25 @@ class Align:
             return cal_shift(day, -self.N)
         return day - timedelta(days=self.offset)
 
+    def cur_date(self, m):
+        """The inverse of `ref_date`: a reference date -> the row that reads it.
+
+        Needed by the UNION row set, which asks the other direction - given the
+        reference's first and last day with data, which table slots have to
+        exist for them to be shown at all.
+
+        NOT EXACT FOR ONE DAY A YEAR, and deliberately not papered over.
+        `cal_shift(cal_shift(d, -N), N) == d` for every date except 29 February,
+        which shifts to 28 February and back to 28 February. So under
+        `exact_date` this can return a day one earlier than the true inverse
+        across a leap boundary. It is used only to WIDEN the span, so the cost
+        of being a day early is an extra empty row, never a dropped one - the
+        direction that fails safe.
+        """
+        if self.calendar:
+            return cal_shift(m, self.N)
+        return m + timedelta(days=self.offset)
+
     def ref_jx(self, day):
         return (self.ref_ev - self.ref_date(day)).days
 
@@ -459,7 +478,7 @@ def anchor(mode, cur_ev, ref_ev, cur_lead, ref_lead):
 
 
 def daily_rows(cur_n, cur_rev, ref_n, ref_rev, cutoff, first, align, ref_cut,
-               cur_ev, ref_ev, ref_last=None):
+               cur_ev, ref_ev, ref_last=None, keep_days=None):
     """One row per day from `first` to the EVENT, with the reference matched by
     `align`. `b`/`rb` are None where the reference has no day.
 
@@ -507,14 +526,65 @@ def daily_rows(cur_n, cur_rev, ref_n, ref_rev, cutoff, first, align, ref_cut,
     # passed; `fut` rows still bound on `ref_ev`. Only the boundary row moves.
     ref_bound = (align.ref_date(cutoff)
                  if align is not None and cutoff is not None else ref_cut)
+    # The reference's own first day with data, the mirror of `ref_last`. Derived
+    # here rather than taken as an argument because `ref_n` is already the source
+    # of truth for it and a parameter would be a second place to keep in step.
+    ref_first = min(ref_n) if ref_n else None
 
     rows, ca, cb, rca, rcb = [], 0, 0, 0.0, 0.0
-    day = first
     # `max` because a FINISHED event's cutoff is past its own event date - the
     # clamp puts it at event_date_last + 1. Stopping at the event there would
     # drop the last rows AND lose the "today" row with them, which is how the
     # first version of this passed on four pages and failed on two.
     end = max(cutoff, cur_ev)
+
+    # OUR OWN EDITION'S WINDOW, CAPTURED BEFORE THE UNION WIDENS ANYTHING.
+    #
+    # This is the one bound in here that does NOT depend on which candidate is
+    # selected: it is the span of OUR sale, and it is the same under all twelve
+    # and all three modes. Every row the union adds lies outside it and carries a
+    # zero current side by construction - measured across all 252 pairings, zero
+    # rows outside it have a non-zero `a`.
+    #
+    # That is what makes the row set deliverable at all. The union made the
+    # table's LENGTH candidate-dependent while only one candidate's length can be
+    # baked, and `applySeries` rewrites the b-side of existing rows and cannot
+    # grow or shrink the table. So the page ships the widest row set any
+    # candidate needs and the client HIDES the rows outside the selected
+    # pairing - and the predicate it hides by is `not own and no reference`,
+    # which is exactly the rule below. `own` travels to the client as a VALUE
+    # (`D.own`), not as a rule for it to re-derive.
+    own_lo, own_hi = first, end
+
+    # THE UNION OF BOTH EDITIONS' SPANS, AT BOTH ENDS.
+    #
+    # The row set used to be bounded by OUR edition alone, so a reference with a
+    # longer campaign lost rows off the table and its cumulative silently
+    # counted only what fitted. Measured across the six pages with a reference:
+    # halloween_2025 lost 2 603 of 21 513 off the top and 10 off the bottom;
+    # paris_xxl_2025 lost 2 971 in a SINGLE row - its launch-day spike, 19% of
+    # that edition's entire sale, sitting one day before the table began.
+    #
+    # A reference day at reference-J renders at table slot J + k, where k is the
+    # weekday snap, so it can fall off EITHER end - and extending only the top
+    # would leave geneve still losing its reference's own event day while the
+    # cumulative claimed to count everything. A figure that moved the right way
+    # and is still wrong is worse than one that never moved.
+    if align is not None and ref_n:
+        lo_ref, hi_ref = min(ref_n), max(ref_n)
+        first = min(first, align.cur_date(lo_ref))
+        end = max(end, align.cur_date(hi_ref))
+
+    # AND BY THE SLOTS ANOTHER COMPARISON NEEDS. `keep_days` decides whether a
+    # row blank on both sides is EMITTED; the walk below has to reach it first.
+    # Widening only the emit rule and not the bounds keeps every row the caller
+    # asked for and visits none of them - which is what the first version did,
+    # silently, producing exactly the row counts it had before.
+    if keep_days:
+        first = min(first, min(keep_days))
+        end = max(end, max(keep_days))
+
+    day = first
     while day <= end:
         fut = day > cutoff
         m = align.ref_date(day) if align is not None else None
@@ -524,7 +594,16 @@ def daily_rows(cur_n, cur_rev, ref_n, ref_rev, cutoff, first, align, ref_cut,
         # same-point left to preserve, so the bound becomes the reference's own
         # event - otherwise the future rows are blank on both sides and the
         # block says nothing.
-        limit = ref_ev if fut else ref_bound
+        # THE FUTURE BOUND IS THE REFERENCE'S LAST DAY WITH DATA, NOT ITS EVENT.
+        #
+        # `ref_ev` cut the reference off at its own event day, so tickets it
+        # sold AFTER that - 53 on bordeaux_2025, 47 on rennes_2025, 10 on
+        # halloween_2025 - had no slot and the cumulative could not count them.
+        # `ref_last` is the same quantity the guard below already enforces, so
+        # for a LIVE candidate (whose data stops before its event) this changes
+        # nothing at all; for a FINISHED one it stops discarding the tail.
+        limit = ref_last if (fut and ref_last is not None) else (
+            ref_ev if fut else ref_bound)
         has_ref = m is not None and limit is not None and m <= limit
         # AND NOT PAST THE REFERENCE'S OWN LAST DAY OF DATA. For a FINISHED
         # edition `ref_last` is at or after its event, so this is inert - which
@@ -539,6 +618,28 @@ def daily_rows(cur_n, cur_rev, ref_n, ref_rev, cutoff, first, align, ref_cut,
         # indistinguishable from the value alone, which is the whole trap.
         if has_ref and ref_last is not None and m > ref_last:
             has_ref = False
+        # AND NOT BEFORE ITS FIRST DAY OF DATA EITHER. THE GUARD WAS ONE-SIDED.
+        #
+        # Every word of the paragraph above applies symmetrically - a day before
+        # the edition opened is as absent as one after its data stops, and
+        # `.get(m, 0)` reads 0 for both. It was never wrong before because
+        # nothing ever walked a day below the reference's own first: the row set
+        # was bounded by OUR span, and when the union replaced that bound it set
+        # the floor at `cur_date(min(ref_n))` - the reference's first day exactly.
+        # The bound was doing this guard's job by arithmetic.
+        #
+        # Baking the widest set for twelve candidates removed that coincidence:
+        # the walk now starts wherever the EARLIEST candidate begins, and for
+        # every other candidate the rows above its own launch mapped to
+        # `ref_n.get(m, 0)` -> 0. Measured on bordeaux the moment the bake
+        # widened: 263 rows carried a reference where the pairing has 179, the
+        # extra 84 asserting "bordeaux_2025 sold 0" about days before it opened.
+        #
+        # Same class as `jr >= 0` and the weekly `w >= 0`: correct by accident
+        # until the thing it depended on moved. Written down as a guard now, so
+        # the next change to the bounds cannot silently re-enable it.
+        if has_ref and ref_first is not None and m < ref_first:
+            has_ref = False
         b = ref_n.get(m, 0) if has_ref else None
         rb = ref_rev.get(m, 0) if has_ref else None
         ca += a
@@ -546,6 +647,32 @@ def daily_rows(cur_n, cur_rev, ref_n, ref_rev, cutoff, first, align, ref_cut,
         if b is not None:
             cb += b
             rcb += rb
+        # A ROW BLANK ON BOTH SIDES IS NOT EMITTED, unless another comparison
+        # needs its slot.
+        #
+        # The union widens the span to cover the reference's campaign, and
+        # between the end of ITS data and the start of OURS there can be a long
+        # stretch belonging to neither: 107 days on bordeaux_oct against
+        # paris_xxl_2025 under `exact_date`. Twelve pairings have such a run, 561
+        # rows in total, and NONE of them carries a figure on either side -
+        # measured, not assumed. They are em dashes down both columns.
+        #
+        # `ca` and `rca` are accumulated ABOVE this gate deliberately. They are
+        # cumulative and flat across a dropped row (`a` is 0 there by
+        # construction), so skipping the append cannot move them - but
+        # accumulating after the gate would make that a coincidence of ordering
+        # rather than a property, and the next edit would not know.
+        #
+        # `keep_days` is how the BUILD asks for a slot it does not need itself:
+        # the page bakes the widest row set any candidate requires, so a day that
+        # is blank for the default candidate may carry the reference for another.
+        # The check calls this WITHOUT `keep_days` and gets the exact per-pairing
+        # set, which is what the client renders after hiding - so the two stay
+        # comparable row for row.
+        own = own_lo <= day <= own_hi
+        if not own and not has_ref and not (keep_days and day in keep_days):
+            day += timedelta(days=1)
+            continue
         rows.append({'jx': (cur_ev - day).days, 'da': day.isoformat(),
                      'db': m.isoformat() if has_ref else None,
                      'a': a, 'b': b, 'ra': round(ra), 'rb': round(rb) if rb is not None else None,
@@ -832,7 +959,7 @@ def projx(days_blocks, cur_days, caps, cutoff, cur_ev, ref_label, ref_key,
 
 
 def build(event, csv_path, cutoff, config, ref_event=None, ref_csv=None,
-          extra_refs=(), mode=None):
+          extra_refs=(), mode=None, cand_spans=()):
     cfg_all = run.load_event_config(config)
     cur_cfg = cfg_all[event]
     ref_cfg = cfg_all.get(ref_event) if ref_event else None
@@ -989,10 +1116,61 @@ def build(event, csv_path, cutoff, config, ref_event=None, ref_csv=None,
     ref_n, ref_rev = series(ref_rows) if ref_rows else (Counter(), Counter())
     first = min(cur_n) if cur_n else cutoff
     span = (cutoff - first).days
+
+    # THE ROW SET HAS TO SERVE EVERY CANDIDATE, BECAUSE ONLY ONE CAN BE BAKED.
+    #
+    # `applySeries` rewrites the b-side of the rows it is given; it cannot grow
+    # or shrink the table. The union made the needed length candidate-dependent -
+    # bordeaux's twelve candidates want between 158 and 307 rows - so baking the
+    # default candidate's length left the other eleven wrong, in both directions,
+    # on 28 of 252 pairings.
+    #
+    # So the page carries the WIDEST set any candidate could need and the client
+    # hides the rows outside the selected pairing. This asks each candidate only
+    # which of OUR days its data could reach, under each of the three modes the
+    # picker offers - `align.cur_date` over its own first and last day with data.
+    #
+    # A SUPERSET IS THE POINT, NOT A COMPROMISE. This deliberately does not
+    # reproduce `daily_rows`' bounds (`ref_bound`, `ref_last`, the fut/past
+    # split): duplicating them here would be a second implementation of the rule
+    # whose single implementation is the reason `check_b1_switch` means anything.
+    # Slots that no candidate turns out to use are blank on both sides for every
+    # candidate, so the same filter that hides the 561 measured ones hides these
+    # too - one rule doing both jobs, rather than a second rule to keep in step.
+    #
+    # `cand_spans` COMES FROM THE MENU'S OWN SOURCE. The comparison menu is built
+    # in `build_v2` from the SERIES FILES that exist, not from the config - an
+    # entry the reader can pick but not fetch is the failure the option was
+    # priced to avoid - so the row set is derived from that same list. Enumerated
+    # from the config instead, it would cover seven candidates on bordeaux while
+    # the menu offers twelve, and the five it missed would be the quiet kind of
+    # wrong: a shorter table, no error, nothing to notice.
+    keep_days = set()
+    for _ev, _lead, _lo, _hi in (cand_spans or ()):
+        for _mode in MODES:
+            _al = anchor(_mode, cur_cfg['event_date_first'], _ev, cur_lead, _lead)
+            # Both ENDS only. The mapping is monotonic in every mode, so the days
+            # between the two endpoints are exactly the days between their
+            # images; mapping each one costs a loop and answers the same
+            # question. The fill below is what makes that true rather than
+            # assumed - it takes the extremes and lays down every day between.
+            keep_days.add(_al.cur_date(_lo))
+            keep_days.add(_al.cur_date(_hi))
+    if keep_days:
+        _lo, _hi = min(keep_days), max(keep_days)
+        keep_days = {_lo + timedelta(days=i) for i in range((_hi - _lo).days + 1)}
+
     D['daily'] = daily_rows(cur_n, cur_rev, ref_n, ref_rev, cutoff, first,
                             align, ref_cut, cur_cfg['event_date_first'],
                             ref_cfg['event_date_first'] if ref_cfg else None,
-                            max(ref_n) if ref_n else None)
+                            max(ref_n) if ref_n else None, keep_days=keep_days)
+    # OUR window, as a VALUE for the client rather than a rule for it to
+    # re-derive. `applySeries` cannot tell a widened row from one of ours from
+    # the figures alone - both read zero on our side - and re-deriving the bound
+    # in JS is exactly the shape that cost three rounds on `cutAt`.
+    D['own'] = [(cur_cfg['event_date_first'] - max(cutoff,
+                 cur_cfg['event_date_first'])).days,
+                (cur_cfg['event_date_first'] - first).days]
     D['weekly'] = weekly_rows(cur_n, cur_rev, ref_n, ref_rev,
                               cur_cfg['event_date_first'],
                               ref_cfg['event_date_first'] if ref_cfg else None,

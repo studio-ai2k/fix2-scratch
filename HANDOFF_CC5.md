@@ -378,8 +378,45 @@ precedent, and now also how the nav trigger gets its name.
 
 ## 4. Added to `HANDOFF_CC4.md` §9
 
-Four this session. The first two are about references that have moved and cannot
-say so; the last two are about fixes.
+Five this session. The first two are about references that have moved and cannot
+say so; the next two are about fixes; the last is about a check that was green
+while the thing it watches was broken.
+
+### AN AGREEMENT CHECK WENT GREEN THROUGH A DEFECT IN BOTH IMPLEMENTATIONS
+
+`check_b1_switch`'s own header has said for weeks that it proves the client and
+the server **agree** and not that either is **right**. On 2026-09-12 that stopped
+being a caution and became an event, so it is recorded as one.
+
+Both sides bounded the comparison edition at its LAST day with data and neither
+bounded it at its FIRST — `ref_last` in `daily_rows`, `lastJr` in `applySeries`,
+no counterpart in either. A row above that edition's launch therefore read
+`ref_n.get(m, 0)` on one side and `day[jr] || 0` on the other, and **both
+answered 0**: "sold nothing", about a day before it opened. Two languages, one
+missing guard, the same wrong number — and 252 comparisons across both grains
+agreeing perfectly.
+
+It surfaced only because the server half was fixed in its own commit and the
+client then disagreed: 263 rendered against 179 expected on bordeaux. **Had both
+halves landed in one commit the gate would have stayed green and never mentioned
+it.**
+
+Two things follow, and they are the reason this is here rather than in a thread:
+
+- **The reconciliation runs BEFORE the gate, not after.** It reads ONE
+  implementation against the source data — reference cumulative against the
+  candidate's own paid total — so it can be wrong about agreement and right about
+  correctness, which is the half the gate structurally cannot supply. A check
+  that compares two things can never be the thing that decides either.
+- **`check_suivi_window` could not see it either, for the same reason in a third
+  place.** Its hole rule walks null reference cells; the missing guard meant those
+  rows were never null. The check was green *because* the code was wrong. That is
+  the second instance this pass of a guard and the assertion over it being
+  one-sided together — the first was A0 and §2's post-event row — and it is the
+  shape to look for: **an assertion whose precondition the defect removes.**
+
+Corollary for whoever next fixes a bound that exists on both sides of the wire:
+fix both halves in one commit and this gate will not notice. Reconcile.
 
 ### A SCREENSHOT IS A MEASUREMENT WITH NO TIMESTAMP
 
